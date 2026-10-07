@@ -1,0 +1,14 @@
+[Unit]
+Description=Nest pre-roll daemon (Garage camera)
+After=graphical-session.target network-online.target
+
+[Service]
+Type=simple
+ExecStart=%h/.venvs/nest/bin/python -u %h/.openclaw/workspace/nest-sdm/nest_warm.py "Garage camera" --keep 6 --chunk 10
+Restart=always
+RestartSec=15
+StandardOutput=append:%h/.local/state/nest-events/warm-Garage_camera.log
+StandardError=append:%h/.local/state/nest-events/warm-Garage_camera.log
+
+[Install]
+WantedBy=default.target

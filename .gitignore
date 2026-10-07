@@ -1,0 +1,13 @@
+__pycache__/
+*.pyc
+*.log
+*.pid
+*.ready
+*.trigger
+*.bin
+.env
+credentials*.json
+token*.json
+device-names.json
+gh-cameras.json
+*.mp4

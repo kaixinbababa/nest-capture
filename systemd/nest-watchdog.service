@@ -1,0 +1,6 @@
+[Unit]
+Description=Nest link watchdog (daemon/relay health)
+
+[Service]
+Type=oneshot
+ExecStart=%h/.venvs/nest/bin/python %h/.openclaw/workspace/nest-sdm/nest_watchdog.py

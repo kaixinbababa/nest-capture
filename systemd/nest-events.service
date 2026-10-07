@@ -1,0 +1,16 @@
+[Unit]
+Description=Nest SDM event listener (Pub/Sub -> Telegram)
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+ExecStart=%h/.venvs/nest/bin/python -u %h/.openclaw/workspace/nest-sdm/sdm_events.py
+WorkingDirectory=%h/.openclaw/workspace/nest-sdm
+Restart=always
+RestartSec=10
+StandardOutput=append:%h/.local/state/nest-events/listener.log
+StandardError=append:%h/.local/state/nest-events/listener.log
+
+[Install]
+WantedBy=default.target

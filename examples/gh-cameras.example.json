@@ -1,0 +1,7 @@
+{
+  "_comment": "SDM 设备名 -> Google Home 网页相机 ID（用于事件后自动打开对应画面）",
+  "DOORBELL": "1-<google-home-camera-id>",
+  "Front Door": "1-<google-home-camera-id>",
+  "Garage camera": "1-<google-home-camera-id>",
+  "Backyard camera": ""
+}
