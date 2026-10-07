@@ -9,6 +9,7 @@
 
 用法: nest_watchdog.py（由 nest-watchdog.timer 每 5 分钟拉起）
 """
+import os
 import pathlib
 import re
 import subprocess

@@ -10,6 +10,7 @@
 
 依赖: ~/.config/nest-sdm/{client.json,token.json}（token 需含 sdm.service + pubsub）
 """
+import os
 import base64
 import json
 import pathlib
