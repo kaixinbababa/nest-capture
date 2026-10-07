@@ -103,6 +103,16 @@ def slug(name):
     return re.sub(r"[^A-Za-z0-9]+", "_", name).strip("_")
 
 
+def clip_sig(p):
+    """片子内容指纹：用来发现环缓冲"冻结"（同一段旧画面被反复当新片送出）。"""
+    import hashlib
+    h = hashlib.sha1()
+    with open(p, "rb") as f:
+        for blk in iter(lambda: f.read(1 << 20), b""):
+            h.update(blk)
+    return h.hexdigest()
+
+
 def main():
     ap = argparse.ArgumentParser()
     ap.add_argument("camera")
@@ -145,9 +155,17 @@ def main():
     import asyncio
     from aiortc import RTCPeerConnection, RTCSessionDescription
 
+    # 固定用【同一个】事件循环：每轮 asyncio.run() 换循环会让 aiortc 的 loop 绑定对象
+    # 在下一轮抛 "Lock ... bound to a different event loop"（实测会话重启时出现）。
+    loop = asyncio.new_event_loop()
+    asyncio.set_event_loop(loop)
     while True:
+        if loop.is_closed():
+            loop = asyncio.new_event_loop()
+            asyncio.set_event_loop(loop)
         try:
-            asyncio.run(session(a, work, label, trigger, blob, JS, RTCPeerConnection, RTCSessionDescription, run))
+            loop.run_until_complete(
+                session(a, work, label, trigger, blob, JS, RTCPeerConnection, RTCSessionDescription, run))
         except KeyboardInterrupt:
             return 0
         except Exception as e:
@@ -257,6 +275,38 @@ async def session(a, work, label, trigger, blob, js_tpl, RTCPeerConnection, RTCS
         if not ok:
             print("[warm] 缓冲片不完整（很可能缺容器头），跳过本次并重置录制", flush=True)
             continue
+        # —— 冻结自检：与上一条【逐字节相同】→ 页面里的 MediaRecorder 已停出帧。
+        #    此时所有"新片"都是同一段旧画面，必须丢弃 + 重载页面逼它重建环缓冲（10/6 冻了 24h 的教训）。
+        sig = clip_sig(out_mp4)
+        sigfile = STATE / f"warm-{slug(a.camera)}.sig"
+        try:
+            prev = sigfile.read_text(encoding="utf-8").strip()
+        except OSError:
+            prev = ""
+        if prev and sig == prev:
+            print(f"[warm] ⚠️ 环缓冲冻结（与上一条同字节 {sig[:10]} · {out_mp4.stat().st_size // 1024}KB）"
+                  f" → 丢弃本片 + 重载相机页", flush=True)
+            try:
+                run([OPENCLAW, "browser", "--browser-profile", "chrome", "evaluate",
+                     "--fn", "try{ window.__pr.started = false; }catch(e){}; 'reset-recorder'", "--target-id", label,
+                     "--timeout-ms", "20000"], timeout=60)
+                print("[warm] 已重置页面录制器（下次注入会重建缓冲）", flush=True)
+            except Exception as e:
+                print(f"[warm] 重载调用异常: {type(e).__name__}: {str(e)[:100]}", flush=True)
+            try:
+                sigfile.unlink()
+            except OSError:
+                pass
+            try:
+                out_mp4.unlink()
+            except OSError:
+                pass
+            await pc.close()
+            return
+        try:
+            sigfile.write_text(sig, encoding="utf-8")
+        except OSError:
+            pass
         # 交给既有审片+投递链路（复用三态逻辑）
         rc, out2, err2 = run([sys.executable, str(SMOOTH_PY), a.camera,
                               "--from-clip", str(out_mp4), "--judge", "--auto-send", "--send", "--person",
